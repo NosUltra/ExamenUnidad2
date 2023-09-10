@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memorama Super Mario Bros 3</title>
+    <style>
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        #memoramaCanvas {
+            background-color: black;
+            border: 20px solid #FF9C87;
+            margin: 20px auto;
+        }
+
+        #info-board {
+            background-color: rgb(0, 0, 0);
+            padding: 10px;
+            margin-top: 10px;
+            border: 6px solid rgb(216, 152, 34);
+            font-family: 'VT323', monospace;
+            color: white;
+        }
+
+        #speaker-container {
+            position: absolute;
+            bottom: 10px;
+            left: 95%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+
+        #speaker-icon {
+            width: 40px;
+
+            height: 40px;
+
+            cursor: pointer;
+        }
+
+        body {
+            background-image: url('https://images7.alphacoders.com/333/333223.jpg');
+            background-size: cover; 
+            background-repeat: no-repeat; 
+        }
+    </style>
+
+    <audio id="background-music" loop>
+        <source src="Sonidos/17. N Spade.mp3"
+            type="audio/mpeg">
+        Tu navegador no admite audio HTML5.
+    </audio>
+
+    <audio id="match-sound">
+        <source src="Sonidos/match-sound.wav" type="audio/mpeg">
+        Tu navegador no admite audio HTML5.
+    </audio>
+
+    <audio id="wrong-match-sound">
+        <source src="Sonidos/wrong-match-sound.wav" type="audio/mpeg">
+        Tu navegador no admite audio HTML5.
+    </audio>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+</head>
+
+<body>
+    <div class="game-container">
+        <div id="info-board">
+            <p>Intentos restantes: <span id="attempts">4</span></p>
+            <p>Victorias: <span id="wins">0</span></p>
+            <p>Derrotas: <span id="losses">0</span></p>
+        </div>
+        <canvas id="memoramaCanvas" width="1300" height="700"></canvas>
+    </div>
+
+    <div id="speaker-container">
+        <img id="speaker-icon" src="img/speaker-off.png" alt="Speaker">
+    </div>
+
+    <script>
+        const canvas = document.getElementById("memoramaCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const CartaAncho = 150;
+        const CartaAlto = 200;
+        const numFilas = 3;
+        const numColumnas = 6;
+        const Espacio = 20;
+        let Intentos = 4;
+        let Ganados = 0;
+        let Perdidos = 0;
+        let isMusicPlaying = false; 
+
+
+
+        function ReproducirMusicaFondo() {
+            const backgroundMusic = document.getElementById("background-music");
+            backgroundMusic.volume = 1; 
+            backgroundMusic.play();
+        }
+
+        const IgualesSonido = document.getElementById("match-sound");
+        function ParesSonido() {
+            IgualesSonido.currentTime = 0;
+            IgualesSonido.play();
+        }
+
+        const NoIgualesSonido = document.getElementById("wrong-match-sound");
+        function NoParesSonido() {
+            NoIgualesSonido.currentTime = 0;
+            NoIgualesSonido.play();
+        }
+
+
+
+
+        const CartasOriginales = [
+            "mushroom", "star", "flower", "coin", "goomba", "koopa",
+        ];
+
+ 
+        const Cartas = [];
+        const ParesTotales = (numColumnas * numFilas) / 2;
+        for (let i = 0; i < ParesTotales; i++) {
+            const Carta = CartasOriginales[i % CartasOriginales.length];
+            Cartas.push(Carta, Carta);
+        }
+
+
+        function RepartirCartas(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        RepartirCartas(Cartas);
+
+        const ReversoCarta = new Image();
+        ReversoCarta.src = "img/card-back.jpg"; 
+
+        const ImagenesCartas = {};
+
+        Cartas.forEach((card, index) => {
+            ImagenesCartas[card] = new Image();
+            ImagenesCartas[card].src = `img/${card}.jpg`; 
+            ImagenesCartas[card].onload = () => {
+                if (index === Cartas.length - 1) {
+                    InicializarJuego();
+                }
+            };
+        });
+
+        const MazoCartas = [];
+        let CartasSeleccionadas = [];
+        let ParesIguales = 0;
+        let EsVolteado = false;
+
+        canvas.addEventListener("click", handleCardClick);
+
+        function handleCardClick(e) {
+            if (EsVolteado || CartasSeleccionadas.length >= 2 || Intentos === 0) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            for (let i = 0; i < MazoCartas.length; i++) {
+                const card = MazoCartas[i];
+                if (
+                    mouseX >= card.x && mouseX <= card.x + CartaAncho &&
+                    mouseY >= card.y && mouseY <= card.y + CartaAlto &&
+                    !card.isMatched && !card.isFaceUp
+                ) {
+                    card.isFaceUp = true;
+                    CartasSeleccionadas.push(card);
+
+                    if (CartasSeleccionadas.length === 2) {
+                        EsVolteado = true;
+                        setTimeout(ChecarPares, 1000);
+                    }
+
+                    DibujarTabla();
+                    break;
+                }
+            }
+        }
+
+        function ChecarPares() {
+            const [carta1, carta2] = CartasSeleccionadas;
+
+            if (carta1.image === carta2.image) {
+                carta1.isMatched = true;
+                carta2.isMatched = true;
+                ParesIguales++;
+                ParesSonido();
+
+                if (ParesIguales === ParesTotales) {
+                    alert("¡Has ganado!");
+                    ReiniciarJuego(true);
+                }
+            } else {
+                carta1.isFaceUp = false;
+                carta2.isFaceUp = false;
+                Intentos--;
+                NoParesSonido();
+
+                if (Intentos === 0) {
+                    alert("¡Has perdido!");
+                    Perdidos++;
+                    ReiniciarJuego(false);
+                }
+            }
+
+            CartasSeleccionadas = [];
+            EsVolteado = false;
+            ActualizarTablero();
+            DibujarTabla();
+        }
+
+        function ReiniciarJuego(SeGana) {
+            MazoCartas.length = 0;
+            ParesIguales = 0;
+            EsVolteado = false;
+            Intentos = 4;
+            RepartirCartas(Cartas);
+            IniciarMazoCartas();
+            if (SeGana) {
+                Ganados++;
+            }
+            ActualizarTablero();
+            DibujarTabla();
+        }
+
+        function IniciarMazoCartas() {
+            const startX = (canvas.width - (numColumnas * CartaAncho + (numColumnas - 1) * Espacio)) / 2;
+            const startY = (canvas.height - (numFilas * CartaAlto + (numFilas - 1) * Espacio)) / 2;
+
+            for (let row = 0; row < numFilas; row++) {
+                for (let col = 0; col < numColumnas; col++) {
+                    const card = {
+                        image: Cartas[row * numColumnas + col],
+                        isFaceUp: false,
+                        isMatched: false,
+                        x: startX + col * (CartaAncho + Espacio),
+                        y: startY + row * (CartaAlto + Espacio)
+                    };
+                    MazoCartas.push(card);
+                }
+            }
+        }
+
+        function DibujarTabla() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            MazoCartas.forEach((card, index) => {
+                if (card.isFaceUp || card.isMatched) {
+                    ctx.drawImage(ImagenesCartas[card.image], card.x, card.y, CartaAncho, CartaAlto);
+                } else {
+                    ctx.drawImage(ReversoCarta, card.x, card.y, CartaAncho, CartaAlto);
+                }
+            });
+        }
+
+        function ActualizarTablero() {
+            document.getElementById("attempts").textContent = Intentos;
+            document.getElementById("wins").textContent = Ganados;
+            document.getElementById("losses").textContent = Perdidos;
+        }
+
+        const speakerIcon = document.getElementById("speaker-icon");
+        speakerIcon.addEventListener("click", ActivarMusicaFondo);
+
+        function ActivarMusicaFondo() {
+            const MusicaFondo = document.getElementById("background-music");
+            const IconoVocina = document.getElementById("speaker-icon");
+
+            if (isMusicPlaying) {
+                MusicaFondo.pause(); // Pausa la música de fondo
+                IconoVocina.src = "img/speaker-off.png"; // Cambia la imagen a altavoz encendido
+            } else {
+                MusicaFondo.play(); // Reproduce la música de fondo
+                IconoVocina.src = "img/speaker.png"; // Cambia la imagen a altavoz encendido
+            }
+
+            isMusicPlaying = !isMusicPlaying; // Invierte el estado
+        }
+
+
+        function InicializarJuego() {
+            IniciarMazoCartas();
+            ActualizarTablero();
+            DibujarTabla();
+            ReproducirMusicaFondo();
+        }
+
+    </script>
+</body>
+
+</html>
