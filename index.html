@@ -84,7 +84,7 @@
     </div>
 
     <div id="speaker-container">
-        <img id="speaker-icon" src="img/speaker-off.png" alt="Speaker">
+        <img id="speaker-icon" src="Imagenes/speaker-off.png" alt="Speaker">
     </div>
 
     <script>
@@ -147,13 +147,13 @@
         RepartirCartas(Cartas);
 
         const ReversoCarta = new Image();
-        ReversoCarta.src = "img/card-back.jpg"; 
+        ReversoCarta.src = "Imagenes/card-back.jpg"; 
 
         const ImagenesCartas = {};
 
         Cartas.forEach((card, index) => {
             ImagenesCartas[card] = new Image();
-            ImagenesCartas[card].src = `img/${card}.jpg`; 
+            ImagenesCartas[card].src = `Imagenes/${card}.jpg`; 
             ImagenesCartas[card].onload = () => {
                 if (index === Cartas.length - 1) {
                     InicializarJuego();
@@ -289,10 +289,10 @@
 
             if (isMusicPlaying) {
                 MusicaFondo.pause(); // Pausa la música de fondo
-                IconoVocina.src = "img/speaker-off.png"; // Cambia la imagen a altavoz encendido
+                IconoVocina.src = "Imagenes/speaker-off.png"; // Cambia la imagen a altavoz encendido
             } else {
                 MusicaFondo.play(); // Reproduce la música de fondo
-                IconoVocina.src = "img/speaker.png"; // Cambia la imagen a altavoz encendido
+                IconoVocina.src = "Imagenes/speaker.png"; // Cambia la imagen a altavoz encendido
             }
 
             isMusicPlaying = !isMusicPlaying; // Invierte el estado
